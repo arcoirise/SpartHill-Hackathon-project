@@ -1,7 +1,8 @@
 # EdgeSense
 
-A privacy-first tool which detects accidents before they happen. Pose analysis
-runs on the edge; only anonymized landmarks and risk scores are transmitted.
+A workplace safety coaching prototype. Camera processing belongs on the edge.
+The demo API relays sensitive skeletal landmarks temporarily and stores only
+zone-level safety summaries; skeletal landmarks are not inherently anonymous.
 
 ## Structure
 
@@ -19,3 +20,9 @@ Run `./start-edgesense.sh` (macOS/Linux) or `start-edgesense.bat` (Windows).
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8000 (docs at `/docs`)
+
+## Backend integration
+
+See [backend setup and API contract](backend/README.md) and the
+[TypeScript client example](backend/examples/edgesense-client.ts).
+The browser pose integration and dashboard are implemented separately by the frontend team.
