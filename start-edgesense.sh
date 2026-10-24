@@ -2,9 +2,9 @@
 set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-(cd "$ROOT/backend" && python3 -m uvicorn app.main:app --reload --port 8000) &
+(cd "$ROOT/backend" && pip install -r requirements.txt && python3 -m uvicorn app.main:app --reload --port 8001) &
 BACKEND_PID=$!
-(cd "$ROOT/frontend" && npm install && npm run dev) &
+(cd "$ROOT/live-demo" && npm install && cd "$ROOT/frontend" && npm install && npm run dev) &
 FRONTEND_PID=$!
 
 trap 'kill $BACKEND_PID $FRONTEND_PID 2>/dev/null' INT TERM EXIT

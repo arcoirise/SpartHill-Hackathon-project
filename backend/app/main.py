@@ -15,6 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from .models import Aggregate, PoseUpdate, Zone
+from .recommend import aclose_client
+from .recommend import router as recommend_router
+from .telemetry import router as telemetry_router
 
 POSE_TTL = 3.0
 MAX_BODY = 32768
@@ -61,10 +64,11 @@ def create_app(db_path=None, api_key=None, retention_days=None):
                 await task
             poses.clear()
             db.close()
+            await aclose_client()
 
     app = FastAPI(title="EdgeSense API", version="0.2.0", lifespan=lifespan,
                   description="Demo API. No video upload. Live skeletons are sensitive, ephemeral data, not anonymous records.")
-    app.add_middleware(CORSMiddleware, allow_origins=[v.strip() for v in os.getenv("EDGESENSE_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if v.strip()], allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type", "X-API-Key"])
+    app.add_middleware(CORSMiddleware, allow_origins=[v.strip() for v in os.getenv("EDGESENSE_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173").split(",") if v.strip()], allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type", "X-API-Key"])
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
@@ -170,6 +174,10 @@ def create_app(db_path=None, api_key=None, retention_days=None):
                 if z[field]:
                     recommendations.append({"zone_id": z["zone_id"], "category": field, "alert_episodes": z[field], "message": message, "source": "rule_based"})
         return {"hours": hours, "zones": sorted(zones.values(), key=lambda z: z["zone_id"]), "hourly": [{"hour": h, **v} for h, v in sorted(hourly.items())], "recommendations": recommendations, "notice": "Demo coaching signals, not a medical assessment. Counts depend on observation coverage. Simulated telemetry is not a measured hazard."}
+
+    # Live demo (live-demo/ Vite app): NIOSH telemetry, zone stats and LLM workstation suggestions.
+    app.include_router(recommend_router)
+    app.include_router(telemetry_router)
 
     return app
 
