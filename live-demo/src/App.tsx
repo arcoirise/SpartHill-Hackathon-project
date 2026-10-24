@@ -10,6 +10,8 @@ import {
   type Recommendation,
 } from "./api";
 import CameraView, { type CameraStats } from "./components/CameraView";
+import RecommendationExplanation from "./components/RecommendationExplanation";
+import { explainRecommendation, hasGripEvidence } from "./recommendationExplanation";
 import { POSTURE_COLORS, type Overlay } from "./components/draw";
 import { mediaBytes } from "./components/ServerPanel";
 import ServerView from "./components/ServerView";
@@ -88,7 +90,7 @@ function gripIssueOf(
   label: string | null,
   liftPosture: LiftPosture | undefined,
 ): GripIssue | null {
-  const bad = grip && grip.status !== "proper" ? grip : null;
+  const bad = grip && hasGripEvidence(grip) && grip.status !== "proper" ? grip : null;
   if (!bad && !posture) return null;
   // Clamped to the server's limits, so a long message can never get a lift's request rejected.
   return {
@@ -326,7 +328,7 @@ export default function App() {
   // A grip held at the top or one-sided is a poor coupling (NIOSH CM 0.90); a balanced lower grip is good.
   const onGripChange = useCallback((grip: GripAssessment | null) => {
     setGripAssessment(grip);
-    if (grip) setCoupling(grip.status === "proper" ? "good" : "poor");
+    if (grip && hasGripEvidence(grip)) setCoupling(grip.status === "proper" ? "good" : "poor");
   }, []);
 
   // Keep a posture alert up for a few seconds after the deep bend ends.
@@ -348,7 +350,7 @@ export default function App() {
   // With the camera running and nobody in view there is nothing to show.
   const serverSample = stats.status === "running" && !stats.personDetected ? null : poseSample;
   const snap = stats.personDetected ? live : null;
-  const coachingText = (gripAssessment?.status !== "proper" ? gripAssessment?.message : null) ?? postureAlert?.text ?? null;
+  const coachingText = (hasGripEvidence(gripAssessment) && gripAssessment?.status !== "proper" ? gripAssessment?.message : null) ?? postureAlert?.text ?? null;
 
   // Ask the AI when the kind of issue changes, not on every frame: the key ignores live numbers like the bend angle.
   const issue = gripIssueOf(gripAssessment, postureAlert, heldObject, snap?.measure.liftPosture);
@@ -438,6 +440,10 @@ const POSTURE_TITLE: Record<PostureKind, string> = {
 /** Live headline for the detected grip/posture issue (bad grip first, then posture, then a proper grip). */
 function detectedIssue(grip: GripAssessment | null, posture: PostureAlert | null, label: string | null) {
   const object = label ?? "load";
+  if (grip && !hasGripEvidence(grip) && !posture) {
+    return { tone: "idle", title: "Grip uncertain", detail: "Both wrists need to be visible before specific grip advice can be shown." };
+  }
+  if (grip && !hasGripEvidence(grip)) return detectedIssue(null, posture, label);
   if (grip?.status === "wrong_top") {
     const where = object === "chair" ? "chair backrest" : `${object} top edge`;
     return { tone: "bad", title: `Wrong finger/hand grip · ${where}`, detail: grip.message };
@@ -470,7 +476,7 @@ function SourceTag({ source, latency, cached }: { source: "llm" | "fallback"; la
  * Bottom bar: what is wrong right now (live, from code), the AI's hand-placement solution for the
  * latest grip/posture issue, and the code-verified redesign for the last scored lift.
  */
-function SolutionBar({
+export function SolutionBar({
   grip,
   posture,
   label,
@@ -489,7 +495,9 @@ function SolutionBar({
 }) {
   const detected = detectedIssue(grip, posture, label);
   // The answer for the issue on screen; until it arrives, the built-in solution for it right away.
-  const shown = current && gripAdvice?.key !== current.key ? { ...current, advice: fallbackGripAdvice(current.issue) } : gripAdvice;
+  const shown = current
+    ? gripAdvice?.key === current.key ? gripAdvice : { ...current, advice: fallbackGripAdvice(current.issue) }
+    : null;
   const advice = shown?.advice;
   const liftPick = liftAdvice?.rec.picks.find((p) => p.kind === "lift");
 
@@ -531,6 +539,10 @@ function SolutionBar({
             When a wrong grip or a risky bend is detected, the AI explains what is wrong and where the hands should go.
           </p>
         )}
+        <RecommendationExplanation
+          key={current?.key ?? "no-current-issue"}
+          explanation={explainRecommendation(current?.issue.status === "posture" ? null : grip, current?.issue ?? null, advice?.source)}
+        />
       </div>
 
       <div className="sol-col sol-lift">
@@ -594,7 +606,7 @@ function Hud({
           <span className={`phase phase-${phaseClass}`}>
             <span className="dot" /> {phaseText}
           </span>
-          {grip && (
+          {grip && hasGripEvidence(grip) && (
             <span className={`grip ${grip.status === "proper" ? "ok" : "bad"}`}>{grip.status === "proper" ? "✓" : "⚠"} {grip.badge}</span>
           )}
         </div>

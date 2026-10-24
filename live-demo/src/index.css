@@ -1475,6 +1475,50 @@ input:focus {
 
 /* ---------- AI Ergonomic Solution bar (below the two views) ---------- */
 
+.camera-device-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; color: var(--muted); font-size: 0.8rem; }
+.camera-device-control label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: #cbd5e1; }
+.camera-device-control select { max-width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid #33415e; border-radius: 6px; background: #0b1220; color: #e2e8f0; }
+.camera-device-control select:focus-visible { outline: 2px solid var(--cyan); }
+
+.recommendation-explanation {
+  margin-top: 14px;
+  border: 1px solid #33415e;
+  border-radius: 8px;
+  background: rgba(8, 13, 26, 0.55);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+.recommendation-explanation summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  cursor: pointer;
+  list-style: none;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.recommendation-explanation summary::-webkit-details-marker { display: none; }
+.recommendation-explanation summary:hover { background: rgba(96, 165, 250, 0.06); }
+.recommendation-explanation summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.explanation-info { color: #93c5fd; font-size: 1rem; }
+.explanation-title { flex: 1; min-width: 0; }
+.bob-development-badge { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border: 1px solid rgba(129, 140, 248, 0.3); border-radius: 8px; background: rgba(99, 102, 241, 0.08); color: #c7d2fe; font-size: 0.7rem; white-space: nowrap; }
+.bob-development-badge img { display: block; width: 28px; height: 28px; object-fit: contain; border-radius: 5px; }
+.explanation-chevron { margin-left: auto; transition: transform 0.15s; }
+.recommendation-explanation[open] .explanation-chevron { transform: rotate(180deg); }
+.explanation-body { padding: 12px; border-top: 1px solid #33415e; }
+.explanation-body p { margin: 0 0 10px; }
+.explanation-body h4 { margin: 14px 0 5px; font-size: 0.75rem; color: #a5b4fc; }
+.explanation-body ul { margin: 0; padding-left: 18px; }
+.explanation-body li + li { margin-top: 5px; }
+.explanation-body .explanation-source { margin-top: 14px; color: #a5b4fc; }
+.explanation-body .explanation-privacy { margin-bottom: 0; color: var(--muted); font-size: 0.73rem; }
+.explanation-body .explanation-attribution { margin-top: 8px; margin-bottom: 0; color: var(--faint); font-size: 0.68rem; font-style: italic; }
+
 .solution {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.8fr) minmax(0, 1fr);

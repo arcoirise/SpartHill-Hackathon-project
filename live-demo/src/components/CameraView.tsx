@@ -17,6 +17,8 @@ import {
   type TrackedObject,
 } from "../pose/objectTracker";
 import type { PoseFrame } from "../pose/types";
+import { hasGripEvidence } from "../recommendationExplanation";
+import { openCamera } from "../cameraDevices";
 import { POSTURE_COLORS, drawHitbox, drawStickman, type HitboxBox, type Overlay } from "./draw";
 
 export interface CameraStats {
@@ -99,7 +101,7 @@ function contactPoints(pose: NormalizedLandmark[]): { x: number; y: number }[] {
   return seen.length ? seen : [pose[LM.L_WRIST], pose[LM.R_WRIST]];
 }
 
-const gripKey = (g: GripAssessment | null) => (g ? `${g.status}|${g.badge}` : "");
+const gripKey = (g: GripAssessment | null) => (g ? `${g.status}|${g.badge}|${g.evidence?.visibleWrists === 2}` : "");
 
 /**
  * Draw the same stickman and load hitbox over the video (transparent) and on the video-free server canvas.
@@ -115,7 +117,7 @@ function paint(
 ) {
   const color = overlay?.color ?? POSTURE_COLORS.safe;
   const load = loadBox(pose, overlay, object, main.width / main.height);
-  const graded = object ? grip : null;
+  const graded = object && hasGripEvidence(grip) ? grip : null;
   const drawAll = (canvas: HTMLCanvasElement, background?: string) => {
     const ctx = canvas.getContext("2d")!;
     // The hands and finger joints take the grip colour, so both views show where the fingers hold the object.
@@ -151,6 +153,9 @@ export default function CameraView({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [aspect, setAspect] = useState(16 / 9);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState("");
+  const [activeCamera, setActiveCamera] = useState("");
   const [message, setMessage] = useState<{ text: string; button?: string } | null>({ text: "Loading pose model…" });
   // Bumping this restarts the whole pipeline (used by the "Try again" button).
   const [attempt, setAttempt] = useState(0);
@@ -163,6 +168,19 @@ export default function CameraView({
   // Keep the latest callbacks without restarting the camera when they change.
   const cb = useRef({ onPose, getOverlay, onStats, onObjectLabel, onGripChange, onReplayEnd, serverCanvasRef });
   cb.current = { onPose, getOverlay, onStats, onObjectLabel, onGripChange, onReplayEnd, serverCanvasRef };
+
+  useEffect(() => {
+    let active = true;
+    const refresh = () => navigator.mediaDevices?.enumerateDevices().then((list) => {
+      if (active) setDevices(list.filter((device) => device.kind === "videoinput"));
+    }).catch(() => {});
+    refresh();
+    navigator.mediaDevices?.addEventListener("devicechange", refresh);
+    return () => {
+      active = false;
+      navigator.mediaDevices?.removeEventListener("devicechange", refresh);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -198,11 +216,14 @@ export default function CameraView({
       setMessage({
         text: "Waiting for camera permission… If no prompt appears: click the icon at the left of the address bar → Camera → Allow, then reload.",
       });
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
-        audio: false,
-      });
-      if (cancelled) return;
+      const opened = await openCamera(navigator.mediaDevices, selectedCamera);
+      stream = opened.stream;
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      setDevices(opened.devices);
+      setActiveCamera(stream.getVideoTracks()[0]?.label || "Camera");
       cameraApproved.current = true;
 
       const video = videoRef.current!;
@@ -324,7 +345,7 @@ export default function CameraView({
           showGrip(null);
         } else if (now - tracked.lastSeen <= GRIP_FRESH_MS) {
           const fingers = FINGER_POINTS.map((i) => pose[i]);
-          const verdict = assessGrip(tracked.box, tracked.label, pose[LM.L_WRIST], pose[LM.R_WRIST], fingers);
+          const verdict = assessGrip(tracked.box, tracked.label, pose[LM.L_WRIST], pose[LM.R_WRIST], fingers, true);
           if (gripKey(verdict) !== gripKey(pendingGrip)) {
             pendingGrip = verdict;
             pendingSince = now;
@@ -367,7 +388,7 @@ export default function CameraView({
       // The restarted pipeline begins with no grip, so don't leave the old verdict on the alert banner.
       cb.current.onGripChange?.(null);
     };
-  }, [attempt, quality]);
+  }, [attempt, quality, selectedCamera]);
 
   // Replay: feed recorded landmarks through onPose in real time and draw them.
   // There is no video in a replay, so the load hitbox is always the hands box.
@@ -440,6 +461,7 @@ export default function CameraView({
   const shownAspect = replay || !cameraLive ? (lastReplayAspect.current ?? aspect) : aspect;
 
   return (
+    <>
     <div className={`camera${replay ? " is-replay" : ""}`} style={{ aspectRatio: shownAspect }}>
       <video ref={videoRef} playsInline muted />
       <canvas ref={canvasRef} />
@@ -457,6 +479,22 @@ export default function CameraView({
         </div>
       )}
     </div>
+    <div className="camera-device-control">
+      <label>
+        Camera source
+        <select value={selectedCamera} onChange={(event) => {
+          setActiveCamera("");
+          setSelectedCamera(event.target.value);
+        }}>
+          <option value="">Automatic — prefer computer webcam</option>
+          {devices.filter((device) => device.deviceId).map((device, index) => (
+            <option key={device.deviceId} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>
+          ))}
+        </select>
+      </label>
+      <span>{activeCamera ? `Using: ${activeCamera}` : "Choose your laptop or USB webcam here."}</span>
+    </div>
+    </>
   );
 }
 
@@ -465,6 +503,7 @@ function describeError(err: unknown): string {
     if (err.name === "NotAllowedError") return "Camera permission denied. Allow camera access in the address bar and reload.";
     if (err.name === "NotFoundError") return "No camera found. Plug in a webcam and reload, or use Replay below.";
     if (err.name === "NotReadableError") return "Camera is in use by another app (Zoom, Teams, Camera app?). Close it and reload.";
+    if (err.name === "OverconstrainedError") return "The selected camera is unavailable. Choose another device in Camera source.";
   }
   return `Could not start: ${err instanceof Error ? err.message : String(err)}`;
 }
