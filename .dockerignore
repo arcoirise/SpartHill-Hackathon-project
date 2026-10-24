@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/.next
+**/.env
+**/.env.*
+**/__pycache__
+**/.pytest_cache
+**/*.sqlite3*
+**/data
+.venv
+work
+outputs
+live-demo/public/mediapipe
+frontend/public/live-demo-app

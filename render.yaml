@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: edgesense
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /live-api/health
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: EDGESENSE_API_URL
+        value: http://127.0.0.1:8001
+      - key: EDGESENSE_ALLOWED_ORIGINS
+        value: https://edgesense.org,https://www.edgesense.org
