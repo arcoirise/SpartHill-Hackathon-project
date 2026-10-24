@@ -22,6 +22,15 @@ export default function Demo() {
       <p className="mt-6 font-sans text-sm text-white/50">
         Concept visualization generated for demonstration purposes. The skeletal and object representations illustrate EdgeSense&apos;s intended privacy-first processing approach and are not live model detections.
       </p>
+
+      <div id="launch-live-demo" className="mt-10 flex justify-center">
+        <Link
+          href="/live-demo"
+          className="inline-block cursor-pointer rounded-xl border border-white/15 bg-[#2c2c2e] px-8 py-3.5 font-sans text-base font-bold text-white transition-colors duration-200 hover:bg-[#3a3a3c]"
+        >
+          Launch live demo
+        </Link>
+      </div>
     </main>
   );
 }

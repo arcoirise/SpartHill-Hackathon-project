@@ -75,19 +75,22 @@ export default function Home() {
       </div>
 
       <div className="relative z-10 flex h-screen w-full select-none flex-col justify-between px-16 py-8 text-white md:px-36 lg:px-48">
-        <header className="relative flex w-full items-center justify-between">
+        <header className="relative flex w-full flex-col items-start gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             EdgeSense
           </div>
-          <nav className="absolute left-1/2 flex -translate-x-1/2 items-center space-x-12 text-lg font-medium text-white/90 md:text-xl">
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-1 text-lg font-medium text-white/90 md:text-xl lg:flex-nowrap lg:gap-0 lg:space-x-8 xl:absolute xl:left-1/2 xl:-translate-x-1/2 xl:space-x-12">
             <Link href="/our-mission" className="cursor-pointer">
               Our mission
             </Link>
             <Link href="/demo" className="cursor-pointer">
               Demo
             </Link>
+            <Link href="/live-demo" className="cursor-pointer">
+              Launch live demo
+            </Link>
           </nav>
-          <div />
+          <div className="hidden lg:block" />
         </header>
 
         <section className="my-auto max-w-6xl text-left">
