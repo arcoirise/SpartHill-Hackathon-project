@@ -125,6 +125,23 @@ for example IBM watsonx). Without a key the app uses a built-in template.
 
 ## Tests
 
+### Recommendation transparency
+
+The live demo includes a collapsed **Why this recommendation?** panel under
+AI Ergonomic Solution. It explains the local grip rule's measured hand/box
+geometry, or the code-written signal from a recent posture alert. It identifies
+template versus model-generated suggestion wording and describes camera
+limitations. These explanations are deterministic and opening the panel makes
+no additional network request. Both wrists must pass the existing visibility
+threshold before specific grip coaching is shown; old coaching is cleared when
+the current issue disappears. This threshold is not a calibrated probability.
+
+Codex implemented the initial panel, evidence handling and tests. IBM Bob
+improved posture-specific summaries, expanded uncertainty messaging, added
+five tests and the contribution label. Follow-up review with Codex corrected
+the 3D-landmark description and handling of missing or overlapping posture
+signals. Bob contributed during development, not as a runtime chat service.
+
 ```powershell
 cd live-demo; npm test            # NIOSH maths, lift detection, filters, hash chain
 cd ../backend; pip install -r requirements-dev.txt; python -m pytest -q

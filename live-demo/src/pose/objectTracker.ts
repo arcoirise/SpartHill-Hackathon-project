@@ -43,6 +43,16 @@ export interface GripAssessment {
   badge: string;
   /** Coaching message for the alert banner & future LLM prompt context */
   message: string | null;
+  evidence?: GripEvidence;
+}
+
+/** Measurements behind a screening verdict, kept on the device. Not probabilities. */
+export interface GripEvidence {
+  visibleWrists: number;
+  wristsNearObject: number;
+  visibleFingersNearObject: number;
+  relativeGripHeight: number | null;
+  wristHeightDifference: number | null;
 }
 
 /**
@@ -256,6 +266,7 @@ const FINGER_GRIP_WEIGHT = 0.6;
  */
 export function assessGrip(
   box: Box, label: string, leftWrist?: Wrist, rightWrist?: Wrist, fingerPoints: Wrist[] = [],
+  withEvidence = false,
 ): GripAssessment {
   const visible = (w?: Wrist) => (w?.visibility ?? 0) > 0.25;
   const wrists = [leftWrist, rightWrist].filter((w): w is Wrist => !!w);
@@ -271,19 +282,29 @@ export function assessGrip(
   if (gripping.length > 0 && fingers.length > 0) {
     averageRelY = FINGER_GRIP_WEIGHT * relY(fingers) + (1 - FINGER_GRIP_WEIGHT) * relY(gripping);
   }
+  const evidence: GripEvidence = {
+    visibleWrists: wrists.filter(visible).length,
+    wristsNearObject: wrists.filter((w) => distanceToBox(w, box) <= 0.20).length,
+    visibleFingersNearObject: fingers.length,
+    relativeGripHeight: Number.isFinite(averageRelY) ? averageRelY : null,
+    wristHeightDifference: leftWrist && rightWrist && visible(leftWrist) && visible(rightWrist)
+      ? Math.abs(leftWrist.y - rightWrist.y) / height : null,
+  };
+  const verdict = (assessment: GripAssessment): GripAssessment =>
+    withEvidence ? { ...assessment, evidence } : assessment;
   if (gripping.length + fingers.length > 0 && averageRelY < 0.38) {
     if (label === "chair") {
-      return {
+      return verdict({
         status: "wrong_top",
         badge: "chair · WRONG GRIP (backrest)",
         message: "Improper chair grip: hands are holding the upper backrest — grip both sides of the seat base to control the center of gravity",
-      };
+      });
     }
-    return {
+    return verdict({
       status: "wrong_top",
       badge: `${label} · WRONG GRIP (top edge)`,
       message: `Improper ${label} grip: hands are holding the top edge — support the lower sides/base near the center of gravity`,
-    };
+    });
   }
   const bulky = ["chair", "box", "backpack", "load"].includes(label) || area(box) > 0.14;
   // Occluded far wrists still count by position, but cannot establish a tilt.
@@ -291,13 +312,13 @@ export function assessGrip(
   const tilted = leftWrist && rightWrist && visible(leftWrist) && visible(rightWrist) &&
     Math.abs(leftWrist.y - rightWrist.y) / height > 0.38;
   if (bulky && (onLoad < 2 || tilted)) {
-    return {
+    return verdict({
       status: "wrong_uneven",
       badge: `${label} · UNEVEN GRIP`,
       message: `Unbalanced grip on ${label}: use both hands evenly on opposite sides of the load`,
-    };
+    });
   }
-  return { status: "proper", badge: `${label} · PROPER GRIP ✓`, message: null };
+  return verdict({ status: "proper", badge: `${label} · PROPER GRIP ✓`, message: null });
 }
 
 function lerpBox(a: Box, b: Box, t: number): Box {
