@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "demo:build": "npm --prefix ../live-demo run build",
+    "predev": "npm run demo:build",
     "dev": "next dev",
+    "prebuild": "npm run demo:build",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
